@@ -2,7 +2,7 @@
 
 # Mittens
 
-This package contains fast [TensorFlow](https://github.com/tensorflow/tensorflow) and [NumPy](https://github.com/numpy/numpy) implementations of [GloVe](https://nlp.stanford.edu/projects/glove/) and [Mittens](arvix_link.com).
+This package contains fast [TensorFlow](https://github.com/tensorflow/tensorflow) and [NumPy](https://github.com/numpy/numpy) implementations of [GloVe](https://nlp.stanford.edu/projects/glove/) and [Mittens](https://arxiv.org/abs/1803.09901).
 
 By vectorizing the GloVe objective function, we deliver massive speed gains over other Python implementations (10x on CPU; 60x on GPU). See the [Speed](#speed) section below.
 
@@ -120,4 +120,4 @@ For denser co-occurrence matrices, Mittens will have an advantage over the C imp
 ## References
 [1] Jeffrey Pennington, Richard Socher, and Christopher D. Manning. 2014. *GloVe: Global Vectors for Word Representation*.
 
-[2] Nicholas Dingwall and Christopher Potts. 2018. *Mittens: An Extension of GloVe for Learning Domain-Specialized Representations*. (NAACL 2018)
+[2] Nicholas Dingwall and Christopher Potts. 2018. *Mittens: An Extension of GloVe for Learning Domain-Specialized Representations*. (NAACL 2018) [[code]](https://github.com/roamanalytics/roamresearch/tree/master/Papers/Mittens)
