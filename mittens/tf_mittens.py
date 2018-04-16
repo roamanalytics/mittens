@@ -86,7 +86,7 @@ class Mittens(MittensBase):
 
             # Keep track of losses
             if self.log_dir and i % 10 == 0:
-                log_writer.add_summary(stats)
+                log_writer.add_summary(stats, global_step=i)
             self.errors.append(loss)
 
             if loss < self.tol:
