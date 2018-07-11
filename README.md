@@ -95,7 +95,7 @@ from mittens import Mittens
 # Load `original_embedding`
 mittens_model = Mittens(n=50, max_iter=1000)
 # Note: n must match the original embedding dimension
-new_embeddings = mittens_mode.fit(
+new_embeddings = mittens_model.fit(
     cooccurrence,
     vocab=vocab,
     initial_embedding_dict= original_embedding)
