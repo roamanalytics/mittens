@@ -58,7 +58,7 @@ class Mittens(MittensBase):
         self._build_graph(vocab, initial_embedding_dict)
 
         # Optimizer set-up:
-        self.cost = self._get_cost_function()
+        self.cost = self._get_cost_function(weights, log_coincidence)
         self.optimizer = self._get_optimizer()
 
         # Set up logging for Tensorboard
@@ -150,18 +150,20 @@ class Mittens(MittensBase):
         self.bc = self._weight_init(self.n_words, 1, 'bc')
 
         self.model = tf.tensordot(self.W, tf.transpose(self.C), axes=1) + \
-                     tf.tensordot(self.bw, tf.transpose(self.ones), axes=1) + \
-                     tf.tensordot(self.ones, tf.transpose(self.bc), axes=1)
+            tf.tensordot(self.bw, tf.transpose(self.ones), axes=1) + \
+            tf.tensordot(self.ones, tf.transpose(self.bc), axes=1)
 
-    def _get_cost_function(self):
+    def _get_cost_function(self, weights, log_coincidence):
         """Compute the cost of the Mittens objective function.
 
         If self.mittens = 0, this is the same as the cost of GloVe.
         """
-        self.weights = tf.placeholder(
-            tf.float32, shape=[self.n_words, self.n_words])
-        self.log_coincidence = tf.placeholder(
-            tf.float32, shape=[self.n_words, self.n_words])
+        self.weights = tf.Variable(weights,
+                                   dtype=tf.float32,
+                                   trainable=False)
+        self.log_coincidence = tf.Variable(log_coincidence,
+                                           dtype=tf.float32,
+                                           trainable=False)
         self.diffs = tf.subtract(self.model, self.log_coincidence)
         cost = tf.reduce_sum(
             0.5 * tf.multiply(self.weights, tf.square(self.diffs)))
