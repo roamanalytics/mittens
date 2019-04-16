@@ -59,7 +59,7 @@ class Mittens(MittensBase):
 
         # Optimizer set-up:
         self.cost = self._get_cost_function(weights, log_coincidence)
-        self.optimizer = self._get_optimizer()
+        self.optimizer = self._get_train_func()
 
         # Set up logging for Tensorboard
         if self.log_dir:
@@ -184,17 +184,21 @@ class Mittens(MittensBase):
         """
         return tf.reduce_sum(tf.pow(tf.subtract(X, Y), 2), axis=1)
 
-    def _get_optimizer(self):
+    def _get_train_func(self):
         """Uses Adagrad to optimize the GloVe/Mittens objective,
         as specified in the GloVe paper.
         """
         optim = tf.train.AdagradOptimizer(self.learning_rate)
-        gradients = optim.compute_gradients(self.cost)
-        if self.log_dir:
-            for name, (g, v) in zip(['W', 'C', 'bw', 'bc'], gradients):
-                tf.summary.histogram("{}_grad".format(name), g)
-                tf.summary.histogram("{}_vals".format(name), v)
-        return optim.apply_gradients(gradients)
+        if self.DEBUG:
+            gradients = optim.compute_gradients(self.cost)
+            if self.log_dir:
+                for name, (g, v) in zip(['W', 'C', 'bw', 'bc'], gradients):
+                    tf.summary.histogram("{}_grad".format(name), g)
+                    tf.summary.histogram("{}_vals".format(name), v)
+            return optim.apply_gradients(gradients)
+        else:
+            return optim.minimize(self.cost,
+                                  global_step=tf.train.get_or_create_global_step())
 
     def _weight_init(self, m, n, name):
         """
