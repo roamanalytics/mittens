@@ -2,7 +2,7 @@
 
 # Mittens
 
-This package contains fast [TensorFlow](https://github.com/tensorflow/tensorflow) and [NumPy](https://github.com/numpy/numpy) implementations of [GloVe](https://nlp.stanford.edu/projects/glove/) and [Mittens](https://arxiv.org/abs/1803.09901).
+This package contains fast [TensorFlow](https://www.tensorflow.org) and [NumPy](https://github.com/numpy/numpy) implementations of [GloVe](https://nlp.stanford.edu/projects/glove/) and [Mittens](https://www.aclweb.org/anthology/N18-2034/).
 
 By vectorizing the GloVe objective function, we deliver massive speed gains over other Python implementations (10x on CPU; 60x on GPU). See the [Speed](#speed) section below.
 

@@ -10,7 +10,7 @@ desc = "A fast implementation of GloVe, with optional retrofitting to " \
 
 setup(
     name="mittens",
-    version="0.1",
+    version="0.2",
     description="Fast GloVe with optional retrofitting.",
     long_description=desc,
     author="Nick Dingwall, Chris Potts",

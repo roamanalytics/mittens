@@ -4,20 +4,18 @@ Fast implementations of Mittens and GloVe in Tensorflow.
 
 See https://nlp.stanford.edu/pubs/glove.pdf for details of GloVe.
 
-References
-----------
-[1] Jeffrey Pennington, Richard Socher, and Christopher D. Manning.
-2014. GloVe: Global Vectors for Word Representation
-
-[2] Nick Dingwall and Christopher Potts. 2018. Mittens: An Extension
-of GloVe for Learning Domain-Specialized Representations
-
 Authors: Nick Dingwall, Chris Potts
 """
 import os
 
 import numpy as np
-import tensorflow as tf
+
+# Try to accommodate TensorFlow v1 and v2:
+try:
+    import tensorflow.compat.v1 as tf
+    tf.disable_eager_execution()
+except ImportError:
+    import tensorflow as tf
 
 from mittens.mittens_base import randmatrix, noise
 from mittens.mittens_base import MittensBase, GloVeBase
@@ -26,8 +24,8 @@ from mittens.mittens_base import MittensBase, GloVeBase
 _FRAMEWORK = "TensorFlow"
 _DESC = """
     This version is faster than the NumPy version. If you prefer NumPy
-    for some reason, import it directly: 
-    
+    for some reason, import it directly:
+
     >>> from mittens.np_mittens import {model}
     """
 
@@ -86,7 +84,7 @@ class Mittens(MittensBase):
 
             # Keep track of losses
             if self.log_dir and i % 10 == 0:
-                log_writer.add_summary(stats, global_step=i)
+                log_writer.add_summary(stats)
             self.errors.append(loss)
 
             if loss < self.tol:
@@ -212,3 +210,26 @@ class GloVe(Mittens, GloVeBase):
     __doc__ = GloVeBase.__doc__.format(
         framework=_FRAMEWORK,
         second=_DESC.format(model=GloVeBase._MODEL))
+
+
+if __name__ == '__main__':
+
+    X = np.array([
+        [10.0,  2.0,  3.0,  4.0],
+        [ 2.0, 10.0,  4.0,  1.0],
+        [ 3.0,  4.0, 10.0,  2.0],
+        [ 4.0,  1.0,  2.0, 10.0]])
+
+    glove = GloVe(n=5, max_iter=5000)
+    G = glove.fit(X)
+
+    print("\nLearned vectors:")
+    print(G)
+
+    print("We expect the dot product of learned vectors "
+          "to be proportional to the co-occurrence counts. "
+          "Let's see how close we came:")
+
+    corr = np.corrcoef(G.dot(G.T).ravel(), X.ravel())[0][1]
+
+    print("Pearson's R: {} ".format(corr))
