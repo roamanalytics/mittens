@@ -39,10 +39,76 @@ class Mittens(MittensBase):
     __doc__ = MittensBase.__doc__.format(
         framework=_FRAMEWORK,
         second=_DESC.format(model=MittensBase._MODEL))
+    
+    def __init__(self, 
+                 DEBUG=False, 
+                 no_feeds=True, 
+                 save_folder=None,
+                 save_iters=500,
+                 save_opt_hist=True,
+                 **kwargs):
+        super().__init__(**kwargs)
+        self.DEBUG = DEBUG
+        self.save_iters = save_iters
+        self.save_opt_hist = save_opt_hist
+        self.no_feeds = no_feeds
+        self.message("Tensorflow ({}) Mittens initialized with {}".format(
+            tf.__version__,
+            'full in-GPU training (no memory feeds)' if self.no_feeds else 'memory feeds'
+            ))
+        self.save_folder = ''
+        if save_folder is not None:
+            if not os.path.isdir(save_folder):
+                os.makedirs(save_folder)
+            if os.path.isdir(save_folder):
+                self.save_folder = save_folder
+          
+        self._last_saved_file = None
+        return
 
     @property
     def framework(self):
         return _FRAMEWORK
+      
+    
+    def save(self, filename):
+        fn = os.path.join(self.save_folder, filename)
+        embeds = self._get_embeds()
+        try:
+          np.save(fn, embeds)
+          self.message('')
+          self.message("  Embeddings file '{}' saved.".format(fn))
+          res = fn + '.npy'
+        except:
+          res = None
+        return res
+      
+      
+    def _save_status(self, itr):
+        if self._last_saved_file is not None:
+          try:
+            os.remove(self._last_saved_file)
+          except:
+            self.message('')
+            self.message("Could not remove '{}'".format(self._last_saved_file))
+        fn = 'embeds_itr_{}'.format(itr)
+        self._last_saved_file = self.save(fn)
+    
+    def _save_optimization_history(self, skip=5):
+        import matplotlib.pyplot as plt
+        plt.style.use('ggplot')
+        _ = plt.figure()
+        ax = plt.gca()
+        ax.plot(np.arange(skip, len(self.errors)), self.errors[skip:])
+        ax.set_title('Mittens loss history (skipped first {} iters)'.format(skip))
+        ax.set_xlabel('Iterations')
+        ax.set_ylabel('Loss')
+        ax.set_yscale('log')
+#        ax.set_xscale('log')
+        plt.savefig(os.path.join(self.save_folder, 'loss.png'))
+        plt.close()
+        
+
 
     def _fit(self, X, weights, log_coincidence,
              vocab=None,
@@ -52,7 +118,7 @@ class Mittens(MittensBase):
             raise AttributeError("Tensorflow version of Mittens does "
                                  "not support specifying initializations.")
         
-        self.DEBUG = False
+        print()
 
         # Start the session:
         tf.reset_default_graph()
@@ -62,7 +128,10 @@ class Mittens(MittensBase):
         self._build_graph(vocab, initial_embedding_dict)
 
         # Optimizer set-up:
-        self.cost = self._get_cost_function(weights, log_coincidence)
+        if self.no_feeds:
+            self.cost = self._get_cost_function(weights, log_coincidence)
+        else:
+            self.cost = self._get_cost_function_with_placeholders()
         self.optimizer = self._get_train_func()
 
         # Set up logging for Tensorboard
@@ -83,12 +152,17 @@ class Mittens(MittensBase):
         merged_logs = tf.summary.merge_all()
         for i in range(1, self.max_iter+1):
             t1 = time()
+            if not self.no_feeds:
+                feed_dict = {
+                    self.weights: weights,
+                    self.log_coincidence: log_coincidence
+                    }
+            else:
+                feed_dict = None
+              
             _, loss, stats = self.sess.run(
                 [self.optimizer, self.cost, merged_logs],
-#                feed_dict={
-#                    self.weights: weights,
-#                    self.log_coincidence: log_coincidence
-#                    }
+                feed_dict=feed_dict
                 )
 
             # Keep track of losses
@@ -105,6 +179,13 @@ class Mittens(MittensBase):
                 self._progressbar("loss: {}, time: {:.2f} s/itr".format(                    
                     loss,
                     t_elapsed), i)
+            
+            if (i % self.save_iters) == 0:
+                self._save_status(i)
+                if self.save_opt_hist:
+                  self._save_optimization_history()
+                    
+                
 
         # Return the sum of the two learned matrices, as recommended
         # in the paper:
@@ -192,6 +273,31 @@ class Mittens(MittensBase):
         tf.summary.scalar("cost", cost)
         return cost
 
+    def _get_cost_function_with_placeholders(self):
+        """Compute the cost of the Mittens objective function.
+
+        If self.mittens = 0, this is the same as the cost of GloVe.
+        """
+        self.weights = tf.placeholder(
+            tf.float32, shape=[self.n_words, self.n_words])
+        self.log_coincidence = tf.placeholder(
+            tf.float32, shape=[self.n_words, self.n_words])
+        
+        self.diffs = tf.subtract(self.model, self.log_coincidence)
+        cost = tf.reduce_sum(
+            0.5 * tf.multiply(self.weights, tf.square(self.diffs)))
+        if self.mittens > 0:
+            self.mittens = tf.constant(self.mittens, tf.float32)
+            cost += self.mittens * tf.reduce_sum(
+                tf.multiply(
+                    self.has_embedding,
+                    self._tf_squared_euclidean(
+                        tf.add(self.W, self.C),
+                        self.original_embedding)))
+        tf.summary.scalar("cost", cost)
+        return cost
+
+
     @staticmethod
     def _tf_squared_euclidean(X, Y):
         """Squared Euclidean distance between the rows of `X` and `Y`.
@@ -234,32 +340,43 @@ class GloVe(Mittens, GloVeBase):
         second=_DESC.format(model=GloVeBase._MODEL))
 
 
-    """Returns a symmetric matrix where the entries are drawn from a
+
 def _make_word_word_matrix(n=50):
+    """Returns a symmetric matrix where the entries are drawn from a
     Poisson distribution"""
     base = np.random.zipf(2, size=(n, n)) - 1
     return base + base.T
 
 if __name__ == '__main__':
+    SIMPLE_TEST = False
+    USE_FULL_GPU = True
+
+    if SIMPLE_TEST:
+        X = np.array([
+            [10.0,  2.0,  3.0,  4.0],
+            [ 2.0, 10.0,  4.0,  1.0],
+            [ 3.0,  4.0, 10.0,  2.0],
+            [ 4.0,  1.0,  2.0, 10.0]])
+        embed_size = 4
+    else:
+        X = _make_word_word_matrix(10000)
+        embed_size = 128
+          
+    glove = GloVe(n=embed_size, 
+                  save_folder='mittens_models',
+                  save_iters=100,
+                  max_iter=1000, 
+                  DEBUG=False, 
+                  no_feeds=USE_FULL_GPU)
+    G = glove.fit(X)
   
+    print("\nLearned vectors:")
+    print(G)
   
-
-#    X = np.array([
-#        [10.0,  2.0,  3.0,  4.0],
-#        [ 2.0, 10.0,  4.0,  1.0],
-#        [ 3.0,  4.0, 10.0,  2.0],
-#
-  X = _make_word_word_matrix(n=10000)
-  glove = GloVe(n=128, max_iter=5000)
-  G = glove.fit(X)
-
-  print("\nLearned vectors:")
-  print(G)
-
-  print("We expect the dot product of learned vectors "
-        "to be proportional to the co-occurrence counts. "
-        "Let's see how close we came:")
-
-  corr = np.corrcoef(G.dot(G.T).ravel(), X.ravel())[0][1]
-  print("Pearson's R: {} ".format(corr))
-
+    print("We expect the dot product of learned vectors "
+          "to be proportional to the co-occurrence counts. "
+          "Let's see how close we came:")
+  
+    corr = np.corrcoef(G.dot(G.T).ravel(), X.ravel())[0][1]
+    print("Pearson's R: {} ".format(corr))
+  

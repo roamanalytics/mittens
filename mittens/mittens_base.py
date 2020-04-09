@@ -31,6 +31,12 @@ class MittensBase(object):
         self.max_iter = max_iter
         self.errors = list()
         self.test_mode = test_mode
+        
+    def message(self, obj):
+        if type(obj) != str:
+          obj = str(obj)
+        print("\r" + obj, flush=True)
+        return
 
     def fit(self,
             X,
