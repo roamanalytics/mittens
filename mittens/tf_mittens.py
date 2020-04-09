@@ -212,24 +212,33 @@ class GloVe(Mittens, GloVeBase):
         second=_DESC.format(model=GloVeBase._MODEL))
 
 
+def _make_word_word_matrix(n=50):
+    """Returns a symmetric matrix where the entries are drawn from a
+    Poisson distribution"""
+    base = np.random.zipf(2, size=(n, n)) - 1
+    return base + base.T
+
 if __name__ == '__main__':
+  
+  
 
-    X = np.array([
-        [10.0,  2.0,  3.0,  4.0],
-        [ 2.0, 10.0,  4.0,  1.0],
-        [ 3.0,  4.0, 10.0,  2.0],
-        [ 4.0,  1.0,  2.0, 10.0]])
+#    X = np.array([
+#        [10.0,  2.0,  3.0,  4.0],
+#        [ 2.0, 10.0,  4.0,  1.0],
+#        [ 3.0,  4.0, 10.0,  2.0],
+#        [ 4.0,  1.0,  2.0, 10.0]])
+#
+  X = _make_word_word_matrix(n=10000)
+  glove = GloVe(n=128, max_iter=5000)
+  G = glove.fit(X)
 
-    glove = GloVe(n=5, max_iter=5000)
-    G = glove.fit(X)
+  print("\nLearned vectors:")
+  print(G)
 
-    print("\nLearned vectors:")
-    print(G)
+  print("We expect the dot product of learned vectors "
+        "to be proportional to the co-occurrence counts. "
+        "Let's see how close we came:")
 
-    print("We expect the dot product of learned vectors "
-          "to be proportional to the co-occurrence counts. "
-          "Let's see how close we came:")
+  corr = np.corrcoef(G.dot(G.T).ravel(), X.ravel())[0][1]
 
-    corr = np.corrcoef(G.dot(G.T).ravel(), X.ravel())[0][1]
-
-    print("Pearson's R: {} ".format(corr))
+  print("Pearson's R: {} ".format(corr))
