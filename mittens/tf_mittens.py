@@ -19,8 +19,12 @@ except ImportError:
 
 from time import time
 
-from mittens.mittens_base import randmatrix, noise
-from mittens.mittens_base import MittensBase, GloVeBase
+try:
+  from mittens.mittens_base import randmatrix, noise
+  from mittens.mittens_base import MittensBase, GloVeBase
+except:
+  from mittens.mittens.mittens_base import randmatrix, noise
+  from mittens.mittens.mittens_base import MittensBase, GloVeBase
 
 
 
@@ -121,6 +125,10 @@ class Mittens(MittensBase):
         print()
 
         # Start the session:
+        if hasattr(self, 'sess'):
+          self.sess.close()
+          self.sess = None
+        run_config = tf.RunOptions(report_tensor_allocations_upon_oom = True)
         tf.reset_default_graph()
         self.sess = tf.InteractiveSession()
 
@@ -162,7 +170,8 @@ class Mittens(MittensBase):
               
             _, loss, stats = self.sess.run(
                 [self.optimizer, self.cost, merged_logs],
-                feed_dict=feed_dict
+                feed_dict=feed_dict,
+                run_config=run_config,
                 )
 
             # Keep track of losses

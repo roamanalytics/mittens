@@ -16,8 +16,13 @@ Authors: Nick Dingwall, Chris Potts
 """
 import numpy as np
 
-from mittens.mittens_base import randmatrix, noise
-from mittens.mittens_base import MittensBase, GloVeBase
+try:
+  from mittens.mittens_base import randmatrix, noise
+  from mittens.mittens_base import MittensBase, GloVeBase
+except:
+  from mittens.mittens.mittens_base import randmatrix, noise
+  from mittens.mittens.mittens_base import MittensBase, GloVeBase
+  
 
 
 _FRAMEWORK = "NumPy"
@@ -34,6 +39,11 @@ class Mittens(MittensBase):
     __doc__ = MittensBase.__doc__.format(
         framework=_FRAMEWORK,
         second=_DESC.format(model=MittensBase._MODEL))
+
+    def __init__(self, 
+                 **kwargs):
+        super().__init__(**kwargs)
+        self.message("NumPy Mittens initialized.")
 
     @property
     def framework(self):

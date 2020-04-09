@@ -4,7 +4,10 @@ import sys
 
 import numpy as np
 
-from mittens.doc import BASE_DOC, MITTENS_PARAM_DESCRIPTION
+try:
+  from mittens.doc import BASE_DOC, MITTENS_PARAM_DESCRIPTION
+except:
+  from mittens.mittens.doc import BASE_DOC, MITTENS_PARAM_DESCRIPTION
 
 
 class MittensBase(object):
