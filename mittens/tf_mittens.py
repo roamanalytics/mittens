@@ -51,6 +51,8 @@ class Mittens(MittensBase):
         if fixed_initialization is not None:
             raise AttributeError("Tensorflow version of Mittens does "
                                  "not support specifying initializations.")
+        
+        self.DEBUG = False
 
         # Start the session:
         tf.reset_default_graph()
@@ -60,8 +62,8 @@ class Mittens(MittensBase):
         self._build_graph(vocab, initial_embedding_dict)
 
         # Optimizer set-up:
-        self.cost = self._get_cost_function()
-        self.optimizer = self._get_optimizer()
+        self.cost = self._get_cost_function(weights, log_coincidence)
+        self.optimizer = self._get_train_func()
 
         # Set up logging for Tensorboard
         if self.log_dir:
@@ -83,9 +85,11 @@ class Mittens(MittensBase):
             t1 = time()
             _, loss, stats = self.sess.run(
                 [self.optimizer, self.cost, merged_logs],
-                feed_dict={
-                    self.weights: weights,
-                    self.log_coincidence: log_coincidence})
+#                feed_dict={
+#                    self.weights: weights,
+#                    self.log_coincidence: log_coincidence
+#                    }
+                )
 
             # Keep track of losses
             if self.log_dir and i % 10 == 0:
@@ -160,18 +164,20 @@ class Mittens(MittensBase):
         self.bc = self._weight_init(self.n_words, 1, 'bc')
 
         self.model = tf.tensordot(self.W, tf.transpose(self.C), axes=1) + \
-                     tf.tensordot(self.bw, tf.transpose(self.ones), axes=1) + \
-                     tf.tensordot(self.ones, tf.transpose(self.bc), axes=1)
+            tf.tensordot(self.bw, tf.transpose(self.ones), axes=1) + \
+            tf.tensordot(self.ones, tf.transpose(self.bc), axes=1)
 
-    def _get_cost_function(self):
+    def _get_cost_function(self, weights, log_coincidence):
         """Compute the cost of the Mittens objective function.
 
         If self.mittens = 0, this is the same as the cost of GloVe.
         """
-        self.weights = tf.placeholder(
-            tf.float32, shape=[self.n_words, self.n_words])
-        self.log_coincidence = tf.placeholder(
-            tf.float32, shape=[self.n_words, self.n_words])
+        self.weights = tf.Variable(weights,
+                                   dtype=tf.float32,
+                                   trainable=False)
+        self.log_coincidence = tf.Variable(log_coincidence,
+                                           dtype=tf.float32,
+                                           trainable=False)
         self.diffs = tf.subtract(self.model, self.log_coincidence)
         cost = tf.reduce_sum(
             0.5 * tf.multiply(self.weights, tf.square(self.diffs)))
@@ -192,17 +198,21 @@ class Mittens(MittensBase):
         """
         return tf.reduce_sum(tf.pow(tf.subtract(X, Y), 2), axis=1)
 
-    def _get_optimizer(self):
+    def _get_train_func(self):
         """Uses Adagrad to optimize the GloVe/Mittens objective,
         as specified in the GloVe paper.
         """
         optim = tf.train.AdagradOptimizer(self.learning_rate)
-        gradients = optim.compute_gradients(self.cost)
-        if self.log_dir:
-            for name, (g, v) in zip(['W', 'C', 'bw', 'bc'], gradients):
-                tf.summary.histogram("{}_grad".format(name), g)
-                tf.summary.histogram("{}_vals".format(name), v)
-        return optim.apply_gradients(gradients)
+        if self.DEBUG:
+            gradients = optim.compute_gradients(self.cost)
+            if self.log_dir:
+                for name, (g, v) in zip(['W', 'C', 'bw', 'bc'], gradients):
+                    tf.summary.histogram("{}_grad".format(name), g)
+                    tf.summary.histogram("{}_vals".format(name), v)
+            return optim.apply_gradients(gradients)
+        else:
+            return optim.minimize(self.cost,
+                                  global_step=tf.train.get_or_create_global_step())
 
     def _weight_init(self, m, n, name):
         """
@@ -224,8 +234,8 @@ class GloVe(Mittens, GloVeBase):
         second=_DESC.format(model=GloVeBase._MODEL))
 
 
-def _make_word_word_matrix(n=50):
     """Returns a symmetric matrix where the entries are drawn from a
+def _make_word_word_matrix(n=50):
     Poisson distribution"""
     base = np.random.zipf(2, size=(n, n)) - 1
     return base + base.T
@@ -238,7 +248,6 @@ if __name__ == '__main__':
 #        [10.0,  2.0,  3.0,  4.0],
 #        [ 2.0, 10.0,  4.0,  1.0],
 #        [ 3.0,  4.0, 10.0,  2.0],
-#        [ 4.0,  1.0,  2.0, 10.0]])
 #
   X = _make_word_word_matrix(n=10000)
   glove = GloVe(n=128, max_iter=5000)
@@ -252,5 +261,5 @@ if __name__ == '__main__':
         "Let's see how close we came:")
 
   corr = np.corrcoef(G.dot(G.T).ravel(), X.ravel())[0][1]
-
   print("Pearson's R: {} ".format(corr))
+
