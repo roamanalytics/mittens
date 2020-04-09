@@ -163,7 +163,7 @@ class MittensBase(object):
         if self.display_progress and \
                                 (iter_num + 1) % self.display_progress == 0:
             sys.stderr.write('\r')
-            sys.stderr.write("Iteration {}: {}".format(iter_num + 1, msg))
+            sys.stderr.write("Iteration {}: {}\t\t\t".format(iter_num + 1, msg))
             sys.stderr.flush()
 
     def __repr__(self):

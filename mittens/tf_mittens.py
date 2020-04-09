@@ -17,8 +17,12 @@ try:
 except ImportError:
     import tensorflow as tf
 
+from time import time
+
 from mittens.mittens_base import randmatrix, noise
 from mittens.mittens_base import MittensBase, GloVeBase
+
+
 
 
 _FRAMEWORK = "TensorFlow"
@@ -76,6 +80,7 @@ class Mittens(MittensBase):
 
         merged_logs = tf.summary.merge_all()
         for i in range(1, self.max_iter+1):
+            t1 = time()
             _, loss, stats = self.sess.run(
                 [self.optimizer, self.cost, merged_logs],
                 feed_dict={
@@ -86,17 +91,24 @@ class Mittens(MittensBase):
             if self.log_dir and i % 10 == 0:
                 log_writer.add_summary(stats)
             self.errors.append(loss)
-
+            t2 = time()
+            t_elapsed = t2 - t1
             if loss < self.tol:
                 # Quit early if tolerance is met
                 self._progressbar("stopping with loss < self.tol", i)
                 break
             else:
-                self._progressbar("loss: {}".format(loss), i)
+                self._progressbar("loss: {}, time: {:.2f} s/itr".format(                    
+                    loss,
+                    t_elapsed), i)
 
         # Return the sum of the two learned matrices, as recommended
         # in the paper:
-        return self.sess.run(tf.add(self.W, self.C))
+        return self._get_embeds()  
+      
+      
+    def _get_embeds(self):
+      return self.sess.run(tf.add(self.W, self.C))
 
     def _build_graph(self, vocab, initial_embedding_dict):
         """Builds the computatation graph.
