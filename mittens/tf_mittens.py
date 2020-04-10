@@ -27,6 +27,9 @@ except:
   from mittens.mittens.mittens_base import MittensBase, GloVeBase
 
 
+from collections import deque
+
+__VER__ = '0.2.1.6'
 
 
 _FRAMEWORK = "TensorFlow"
@@ -50,14 +53,17 @@ class Mittens(MittensBase):
                  save_folder=None,
                  save_iters=500,
                  save_opt_hist=True,
+                 name='mittenstf',
                  **kwargs):
         super().__init__(**kwargs)
         self.DEBUG = DEBUG
+        self.name = name
         self.save_iters = save_iters
         self.save_opt_hist = save_opt_hist
         self.no_feeds = no_feeds
-        self.message("Tensorflow ({}) Mittens initialized with {}".format(
+        self.message("Tensorflow ({}) Mittens v{} initialized with {}".format(
             tf.__version__,
+            __VER__,
             'full in-GPU training (no memory feeds)' if self.no_feeds else 'memory feeds'
             ))
         self.save_folder = ''
@@ -66,6 +72,13 @@ class Mittens(MittensBase):
                 os.makedirs(save_folder)
             if os.path.isdir(save_folder):
                 self.save_folder = save_folder
+            self.message("  Saving in '{}' folder.".format(self.save_folder))
+        else:
+            self.message('  No folder provided. Saving in current folder.')
+            
+        self.message("  Generating d={} embeddings for {} items".format(
+            self.n,
+            self.n_words))
           
         self._last_saved_file = None
         return
@@ -95,7 +108,7 @@ class Mittens(MittensBase):
           except:
             self.message('')
             self.message("Could not remove '{}'".format(self._last_saved_file))
-        fn = 'embeds_itr_{}'.format(itr)
+        fn = '{}_i{}k'.format(self.name, int(itr / 1000))
         self._last_saved_file = self.save(fn)
     
     def _save_optimization_history(self, skip=5):
@@ -109,7 +122,7 @@ class Mittens(MittensBase):
         ax.set_ylabel('Loss')
         ax.set_yscale('log')
 #        ax.set_xscale('log')
-        plt.savefig(os.path.join(self.save_folder, 'loss.png'))
+        plt.savefig(os.path.join(self.save_folder, '{}_loss.png'.format(self.name)))
         plt.close()
         
 
@@ -158,6 +171,8 @@ class Mittens(MittensBase):
             self.bc_start = self.sess.run(self.bc)
 
         merged_logs = tf.summary.merge_all()
+        t0 = time()
+        self._last_timings = deque(maxlen=1000)
         for i in range(1, self.max_iter+1):
             t1 = time()
             if not self.no_feeds:
@@ -171,7 +186,7 @@ class Mittens(MittensBase):
             _, loss, stats = self.sess.run(
                 [self.optimizer, self.cost, merged_logs],
                 feed_dict=feed_dict,
-                run_config=run_config,
+                options=run_config,
                 )
 
             # Keep track of losses
@@ -179,15 +194,23 @@ class Mittens(MittensBase):
                 log_writer.add_summary(stats)
             self.errors.append(loss)
             t2 = time()
-            t_elapsed = t2 - t1
+            t_l = t2 - t1
+            self._last_timings.append(t_l)
+            t_lap = np.mean(self._last_timings)
+            t_elapsed = t2 - t0
+            t_total = t_lap * self.max_iter
+            t_remain = t_total - t_elapsed
             if loss < self.tol:
                 # Quit early if tolerance is met
                 self._progressbar("stopping with loss < self.tol", i)
                 break
             else:
-                self._progressbar("loss: {}, time: {:.2f} s/itr".format(                    
+                self._progressbar("loss: {}, time: {:.2f} s/itr, remain: {:.2f} hrs (elapsed: {:.2f} hrs out of total {:.2f} hrs)".format(                    
                     loss,
-                    t_elapsed), i)
+                    t_lap,
+                    t_remain / 3600,
+                    t_elapsed / 3600,
+                    t_total / 3600), i)
             
             if (i % self.save_iters) == 0:
                 self._save_status(i)
