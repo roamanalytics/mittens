@@ -218,9 +218,10 @@ class Mittens(MittensBase):
                   self._save_optimization_history()
                     
                 
-
+        #endfor iters
         # Return the sum of the two learned matrices, as recommended
         # in the paper:
+        self.save(self.name+'_embeds')
         return self._get_embeds()  
       
       
