@@ -135,7 +135,7 @@ class Mittens(MittensBase):
             raise AttributeError("Tensorflow version of Mittens does "
                                  "not support specifying initializations.")
         
-        print()
+        self.message("Preparing graph & session:", timer='start')
 
         # Start the session:
         if hasattr(self, 'sess'):
@@ -146,9 +146,11 @@ class Mittens(MittensBase):
         self.sess = tf.InteractiveSession()
 
         # Build the computation graph.
+        self.message("  Building graph")
         self._build_graph(vocab, initial_embedding_dict)
 
         # Optimizer set-up:
+        self.message("  Preparing cost/train function")
         if self.no_feeds:
             self.cost = self._get_cost_function(weights, log_coincidence)
         else:
@@ -163,6 +165,7 @@ class Mittens(MittensBase):
             log_writer = tf.summary.FileWriter(directory, flush_secs=1)
 
         # Run training
+        self.message("  Initializing variables")
         self.sess.run(tf.global_variables_initializer())
         if self.test_mode:
             self.W_start = self.sess.run(self.W)
@@ -173,6 +176,7 @@ class Mittens(MittensBase):
         merged_logs = tf.summary.merge_all()
         t0 = time()
         self._last_timings = deque(maxlen=1000)
+        self.message("Done preparation session", timer='stop')
         for i in range(1, self.max_iter+1):
             t1 = time()
             if not self.no_feeds:
@@ -392,7 +396,7 @@ if __name__ == '__main__':
             [ 4.0,  1.0,  2.0, 10.0]])
         embed_size = 4
     else:
-        X = _make_word_word_matrix(10000)
+        X = _make_word_word_matrix(13000)
         embed_size = 128
           
     glove = GloVe(n=embed_size, 
