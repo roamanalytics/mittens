@@ -1,10 +1,14 @@
 from copy import copy
 import random
 import sys
+from time import time
 
 import numpy as np
 
-from mittens.doc import BASE_DOC, MITTENS_PARAM_DESCRIPTION
+try:
+  from mittens.doc import BASE_DOC, MITTENS_PARAM_DESCRIPTION
+except:
+  from mittens.mittens.doc import BASE_DOC, MITTENS_PARAM_DESCRIPTION
 
 
 class MittensBase(object):
@@ -31,6 +35,19 @@ class MittensBase(object):
         self.max_iter = max_iter
         self.errors = list()
         self.test_mode = test_mode
+        
+    def message(self, obj, timer=None):
+        if type(obj) != str:
+          obj = str(obj)          
+        elapsed = 0
+        if timer == 'start':
+          self._msg_time = time()
+        elif timer == 'stop':
+          elapsed = time() - self._msg_time
+        if elapsed > 0:
+          obj = obj + ' ({:.1f}s)'.format(elapsed)
+        print("\r" + obj, flush=True)        
+        return
 
     def fit(self,
             X,
@@ -69,14 +86,18 @@ class MittensBase(object):
             embedding of the corresponding element in `vocab`.
 
         """
+        self.message("Fitting mco {}".format(X.shape))
+        
         if fixed_initialization is not None:
             assert self.test_mode, \
                 "Fixed initialization parameters can only be provided" \
                 " in test mode. Initialize {} with `test_mode=True`.". \
                      format(self.__class__.split(".")[-1])
+        self.message("  Dimensions check")
         self._check_dimensions(
             X, vocab, initial_embedding_dict
         )
+        self.message("  Initializing weights and log(mco)")
         weights, log_coincidence = self._initialize(X)
         return self._fit(X, weights, log_coincidence,
                          vocab=vocab,
@@ -163,7 +184,7 @@ class MittensBase(object):
         if self.display_progress and \
                                 (iter_num + 1) % self.display_progress == 0:
             sys.stderr.write('\r')
-            sys.stderr.write("Iteration {}: {}".format(iter_num + 1, msg))
+            sys.stderr.write("Iteration {}: {}\t\t\t".format(iter_num + 1, msg))
             sys.stderr.flush()
 
     def __repr__(self):
