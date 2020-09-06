@@ -118,9 +118,9 @@ class Mittens(MittensBase):
         weighted_diffs = np.multiply(weights, diffs)
         wgrad = weighted_diffs.dot(self.C)
         cgrad = weighted_diffs.T.dot(self.W)
-        bwgrad = weighted_diffs.sum(axis=1).reshape(-1, 1)
-        bcgrad = weighted_diffs.sum(axis=0).reshape(-1, 1)
-        error = (0.5 * np.multiply(weights, diffs ** 2)).sum()
+        bwgrad = weighted_diffs.sum(axis=1).values.reshape(-1, 1)
+        bcgrad = weighted_diffs.sum(axis=0).values.reshape(-1, 1)
+        error = (0.5 * np.multiply(weights.values, diffs.values ** 2)).sum()
 
         # Then we add the Mittens term (only if mittens > 0)
         if self.mittens > 0:
