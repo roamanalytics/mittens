@@ -1,7 +1,7 @@
 from copy import copy
 import sys
-
 import numpy as np
+from mittens.doc import BASE_DOC, MITTENS_PARAM_DESCRIPTION
 
 # create a global random number generator if it doesn't already exist.
 if 'random' not in globals():
@@ -9,8 +9,6 @@ if 'random' not in globals():
         random = np.random.default_rng(seed)
     else:
         random = np.random.default_rng()
-
-from mittens.doc import BASE_DOC, MITTENS_PARAM_DESCRIPTION
 
 class MittensBase(object):
 
