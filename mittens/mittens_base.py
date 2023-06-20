@@ -1,11 +1,14 @@
 from copy import copy
-import random
 import sys
-
 import numpy as np
-
 from mittens.doc import BASE_DOC, MITTENS_PARAM_DESCRIPTION
 
+# create a global random number generator if it doesn't already exist.
+if 'random' not in globals():
+    if 'seed' in globals():
+        random = np.random.default_rng(seed)
+    else:
+        random = np.random.default_rng()
 
 class MittensBase(object):
 
@@ -265,9 +268,11 @@ def randmatrix(m, n, random_seed=None):
     """Creates an m x n matrix of random values drawn using
     the Xavier Glorot method."""
     val = np.sqrt(6.0 / (m + n))
-    np.random.seed(random_seed)
-    return np.random.uniform(-val, val, size=(m, n))
-
+    if random is not None:
+        np.random.seed(random_seed)
+        return np.random.uniform(-val, val, size=(m, n))
+    else:
+        return random.uniform(-val, val, size=(m,n))
 
 def noise(n, scale=0.01):
     """Sample zero-mean Gaussian-distributed noise.
@@ -284,4 +289,4 @@ def noise(n, scale=0.01):
     -------
     np.array of size (n, )
     """
-    return np.random.normal(0, scale, size=n)
+    return random.normal(0, scale, size=n)
